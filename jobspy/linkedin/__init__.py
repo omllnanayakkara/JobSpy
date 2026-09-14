@@ -18,7 +18,8 @@ from jobspy.linkedin.util import (
     job_type_code,
     parse_job_type,
     parse_job_level,
-    parse_company_industry
+    parse_company_industry,
+    parse_company_website,
 )
 from jobspy.model import (
     JobPost,
@@ -68,6 +69,7 @@ class LinkedIn(Scraper):
         self.session.headers.update(headers)
         self.scraper_input = None
         self.country = "worldwide"
+        self.company_cache: dict[str, dict] = {}
         self.job_url_direct_regex = re.compile(r'(?<=\?url=)[^"]+')
 
     def scrape(self, scraper_input: ScraperInput) -> JobResponse:
@@ -224,6 +226,9 @@ class LinkedIn(Scraper):
         if full_descr:
             job_details = self._get_job_details(job_id)
             description = job_details.get("description")
+        company_details = {}
+        if self.scraper_input.linkedin_fetch_company_details and company_url:
+            company_details = self._get_company_details(company_url)
         is_remote = is_job_remote(title, description, location)
 
         return JobPost(
@@ -231,6 +236,7 @@ class LinkedIn(Scraper):
             title=title,
             company_name=company,
             company_url=company_url,
+            company_url_direct=company_details.get("company_url_direct"),
             location=location,
             is_remote=is_remote,
             date_posted=date_posted,
@@ -300,6 +306,35 @@ class LinkedIn(Scraper):
             "company_logo": company_logo,
             "job_function": job_function,
         }
+
+    def _get_company_details(self, company_url: str) -> dict:
+        """
+        Retrieves company details by going to the company page url, cached per company
+        :param company_url:
+        :return: dict
+        """
+        company_name = company_url.split("?")[0].rstrip("/").split("/")[-1]
+        if not company_name:
+            return {}
+        if company_name in self.company_cache:
+            return self.company_cache[company_name]
+
+        company_details = {}
+        try:
+            response = self.session.get(
+                f"{self.base_url}/company/{company_name}", timeout=5
+            )
+            response.raise_for_status()
+            if "linkedin.com/signup" not in response.url and "authwall" not in response.url:
+                soup = BeautifulSoup(response.text, "html.parser")
+                company_details = {
+                    "company_url_direct": parse_company_website(soup),
+                }
+        except Exception as e:
+            log.warning(f"failed to fetch company page {company_name}: {e}")
+
+        self.company_cache[company_name] = company_details
+        return company_details
 
     def _get_location(self, metadata_card: Optional[Tag]) -> Location:
         """

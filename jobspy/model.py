@@ -314,6 +314,7 @@ class ScraperInput(BaseModel):
     easy_apply: bool | None = None
     offset: int = 0
     linkedin_fetch_description: bool = False
+    linkedin_fetch_company_details: bool = False
     linkedin_company_ids: list[int] | None = None
     description_format: DescriptionFormat | None = DescriptionFormat.MARKDOWN
 

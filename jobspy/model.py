@@ -124,6 +124,7 @@ class Country(Enum):
     SOUTHAFRICA = ("south africa", "za")
     SOUTHKOREA = ("south korea", "kr")
     SPAIN = ("spain", "es", "es")
+    SRILANKA = ("sri lanka,srilanka", "lk")     # Added Sri Lanka
     SWEDEN = ("sweden", "se")
     SWITZERLAND = ("switzerland", "ch", "de:ch")
     TAIWAN = ("taiwan", "tw")

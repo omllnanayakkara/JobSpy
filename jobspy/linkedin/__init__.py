@@ -3,7 +3,8 @@ from __future__ import annotations
 import math
 import random
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
 from typing import Optional
 from urllib.parse import urlparse, urlunparse, unquote
 
@@ -43,7 +44,6 @@ from jobspy.util import (
 )
 
 log = create_logger("LinkedIn")
-
 
 class LinkedIn(Scraper):
     base_url = "https://www.linkedin.com"
@@ -218,8 +218,10 @@ class LinkedIn(Scraper):
         date_posted = None
         if datetime_tag and "datetime" in datetime_tag.attrs:
             datetime_str = datetime_tag["datetime"]
+            hours_str = datetime_tag.text.replace("\n", "").strip().split()[0]
             try:
-                date_posted = datetime.strptime(datetime_str, "%Y-%m-%d")
+                date_posted = datetime.now(ZoneInfo("Asia/Colombo")) - timedelta(hours=int(hours_str))
+                # date_posted = datetime.strptime(datetime_str, "%Y-%m-%d")
             except:
                 date_posted = None
         job_details = {}

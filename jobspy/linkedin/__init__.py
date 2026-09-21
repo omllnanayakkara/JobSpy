@@ -219,11 +219,14 @@ class LinkedIn(Scraper):
         if datetime_tag and "datetime" in datetime_tag.attrs:
             datetime_str = datetime_tag["datetime"]
             time_str = datetime_tag.text.replace("\n", "").strip()
-            hours_parsed = self._parse_hours_ago(time_str)
+            print(title)
+            print(time_str)
+            time_dlt = self._parse_hours_ago(time_str)
             try:
-                date_posted = datetime.now(ZoneInfo("Asia/Colombo")) - timedelta(hours=hours_parsed) if hours_parsed else datetime.strptime(datetime_str, "%Y-%m-%d")
+                date_posted = datetime.now(ZoneInfo("Asia/Colombo")) - time_dlt if time_dlt else datetime.strptime(datetime_str, "%Y-%m-%d")
             except:
                 date_posted = None
+            print(date_posted)
         job_details = {}
         if full_descr:
             job_details = self._get_job_details(job_id)
@@ -381,11 +384,19 @@ class LinkedIn(Scraper):
 
         return job_url_direct
 
-    def _parse_hours_ago(self, time:str) -> float | None:
-        time_int = time.split()[0]
-        if time_int in ["", None]:
+    def _parse_hours_ago(self, time:str) -> timedelta | None:
+        time_str = time.split()[0]
+        if time_str in ["", None]:
             return None
-        if time.__contains__("minutes"):
-            return float(time_int) / 60
-        return float(time_int)
+        time_num = float(time_str)
+
+        if time.__contains__("minute"):
+            return timedelta(minutes=time_num)
+        elif time.__contains__("hour"):
+            return timedelta(hours=time_num)
+        elif time.__contains__("day"):
+            return timedelta(days=time_num)
+        else: 
+            return timedelta()
+        
         

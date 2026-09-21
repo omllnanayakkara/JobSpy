@@ -218,10 +218,10 @@ class LinkedIn(Scraper):
         date_posted = None
         if datetime_tag and "datetime" in datetime_tag.attrs:
             datetime_str = datetime_tag["datetime"]
-            hours_str = datetime_tag.text.replace("\n", "").strip().split()[0]
+            time_str = datetime_tag.text.replace("\n", "").strip()
+            hours_parsed = self._parse_hours_ago(time_str)
             try:
-                date_posted = datetime.now(ZoneInfo("Asia/Colombo")) - timedelta(hours=int(hours_str))
-                # date_posted = datetime.strptime(datetime_str, "%Y-%m-%d")
+                date_posted = datetime.now(ZoneInfo("Asia/Colombo")) - timedelta(hours=hours_parsed) if hours_parsed else datetime.strptime(datetime_str, "%Y-%m-%d")
             except:
                 date_posted = None
         job_details = {}
@@ -380,3 +380,12 @@ class LinkedIn(Scraper):
                 job_url_direct = unquote(job_url_direct_match.group())
 
         return job_url_direct
+
+    def _parse_hours_ago(self, time:str) -> float | None:
+        time_int = time.split()[0]
+        if time_int in ["", None]:
+            return None
+        if time.__contains__("minutes"):
+            return float(time_int) / 60
+        return float(time_int)
+        

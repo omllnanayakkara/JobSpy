@@ -75,7 +75,6 @@ def scrape_jobs(
     description_format: str | DescriptionFormat | None = "markdown",
     linkedin_fetch_description: bool | None = False,
     linkedin_company_ids: Iterable[int] | None = None,
-    linkedin_fetch_company_details: bool | None = False,
     offset: int | None = 0,
     hours_old: int | None = None,
     enforce_annual_salary: bool | None = False,
@@ -85,8 +84,6 @@ def scrape_jobs(
 ) -> pd.DataFrame:
     """
     Scrapes job data from job boards concurrently
-    :param linkedin_fetch_company_details: fetch each LinkedIn company page
-        (one request per company) to fill company_url_direct
     :param linkedin_fetch_description: Deprecated since 1.2.0: use fetch_description;
         will be removed in 2.0.
     :return: Pandas DataFrame containing job data

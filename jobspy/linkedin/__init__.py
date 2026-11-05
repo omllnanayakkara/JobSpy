@@ -25,7 +25,6 @@ from jobspy.linkedin.constant import (
 from jobspy.linkedin.util import (
     criteria,
     is_job_remote,
-    parse_company_website,
     parse_location,
     parse_time_ago,
 )
@@ -54,7 +53,6 @@ class LinkedIn(Scraper):
 
     def scrape(self, scraper_input: ScraperInput) -> list[JobPost]:
         self.scraper_input = scraper_input
-        self.company_cache: dict[str, dict[str, object]] = {}
         self.session = create_session(
             RequestsRotating(scraper_input.proxies, clear_cookies=True),
             scraper_input,
@@ -159,8 +157,6 @@ class LinkedIn(Scraper):
             self._fetch_details(job_id) if self.scraper_input.fetch_description else {}
         )
         company_url = str(company_link["href"]).split("?")[0] if company_link else None
-        if self.scraper_input.linkedin_fetch_company_details and company_url:
-            job_details |= self._fetch_company_details(company_url)
 
         return JobPost(
             id=f"li-{job_id}",
@@ -275,27 +271,3 @@ class LinkedIn(Scraper):
             "company_industry": criteria(soup, "Industries"),
             "company_logo": logo_image.get("data-delayed-url") if logo_image else None,
         }
-
-    def _fetch_company_details(self, company_url: str) -> dict[str, object]:
-        """
-        The company page's website, cached per company; empty when the page can't be read
-        """
-        slug = company_url.rstrip("/").split("/")[-1]
-        if not slug:
-            return {}
-        if slug in self.company_cache:
-            return self.company_cache[slug]
-        details: dict[str, object] = {}
-        try:
-            response = self.session.get(f"{self.base_url}/company/{slug}")
-            check_status(response)
-            path = urlparse(response.url).path
-            if path.startswith("/company/"):
-                soup = BeautifulSoup(response.text, "html.parser")
-                details = {"company_url_direct": parse_company_website(soup)}
-            else:
-                self.log.warning(f"company {slug}: redirected to {path}")
-        except Exception as e:
-            self.log.warning(f"company {slug}: {e}")
-        self.company_cache[slug] = details
-        return details

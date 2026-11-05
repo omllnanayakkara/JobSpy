@@ -262,7 +262,6 @@ class ScraperInput(BaseModel):
     linkedin_fetch_description: bool = False
     """Deprecated since 1.2.0: use fetch_description; will be removed in 2.0."""
     linkedin_company_ids: list[int] | None = None
-    linkedin_fetch_company_details: bool = False
     description_format: DescriptionFormat = DescriptionFormat.MARKDOWN
 
     results_wanted: int = Field(15, ge=1)

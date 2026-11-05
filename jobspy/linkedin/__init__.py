@@ -3,7 +3,7 @@ from __future__ import annotations
 import random
 import re
 import time
-from datetime import date
+from datetime import date, datetime
 from urllib.parse import urlparse
 
 from bs4 import BeautifulSoup
@@ -22,7 +22,13 @@ from jobspy.linkedin.constant import (
     salary_range,
     upper_limit,
 )
-from jobspy.linkedin.util import criteria, is_job_remote, parse_location
+from jobspy.linkedin.util import (
+    criteria,
+    is_job_remote,
+    parse_company_website,
+    parse_location,
+    parse_time_ago,
+)
 from jobspy.model import (
     Compensation,
     CompensationInterval,
@@ -48,6 +54,7 @@ class LinkedIn(Scraper):
 
     def scrape(self, scraper_input: ScraperInput) -> list[JobPost]:
         self.scraper_input = scraper_input
+        self.company_cache: dict[str, dict[str, object]] = {}
         self.session = create_session(
             RequestsRotating(scraper_input.proxies, clear_cookies=True),
             scraper_input,
@@ -147,22 +154,39 @@ class LinkedIn(Scraper):
             )
         except (TypeError, KeyError, ValueError):
             date_posted = None
+        date_estimated = self._estimate_posted_at(time_tag, date_posted)
         job_details = (
             self._fetch_details(job_id) if self.scraper_input.fetch_description else {}
         )
+        company_url = str(company_link["href"]).split("?")[0] if company_link else None
+        if self.scraper_input.linkedin_fetch_company_details and company_url:
+            job_details |= self._fetch_company_details(company_url)
 
         return JobPost(
             id=f"li-{job_id}",
             title=title,
             company=company_tag.get_text(strip=True),
-            company_url=str(company_link["href"]).split("?")[0]
-            if company_link
-            else None,
+            company_url=company_url,
             location=location,
             is_remote=is_job_remote(title, location),
             date_posted=date_posted,
+            date_estimated=date_estimated,
             job_url=f"{self.base_url}/jobs/view/{job_id}",
         ).model_copy(update=job_details)
+
+    @staticmethod
+    def _estimate_posted_at(
+        time_tag: Tag | None, date_posted: date | None
+    ) -> datetime | None:
+        """
+        Now minus the card's "N hours ago"; midnight of date_posted when that's coarser
+        """
+        delta = parse_time_ago(time_tag.get_text(" ", strip=True)) if time_tag else None
+        if delta is not None:
+            return (datetime.now() - delta).replace(microsecond=0)
+        if date_posted is not None:
+            return datetime.combine(date_posted, datetime.min.time())
+        return None
 
     @staticmethod
     def _parse_salary(text: str) -> Compensation:
@@ -251,3 +275,27 @@ class LinkedIn(Scraper):
             "company_industry": criteria(soup, "Industries"),
             "company_logo": logo_image.get("data-delayed-url") if logo_image else None,
         }
+
+    def _fetch_company_details(self, company_url: str) -> dict[str, object]:
+        """
+        The company page's website, cached per company; empty when the page can't be read
+        """
+        slug = company_url.rstrip("/").split("/")[-1]
+        if not slug:
+            return {}
+        if slug in self.company_cache:
+            return self.company_cache[slug]
+        details: dict[str, object] = {}
+        try:
+            response = self.session.get(f"{self.base_url}/company/{slug}")
+            check_status(response)
+            path = urlparse(response.url).path
+            if path.startswith("/company/"):
+                soup = BeautifulSoup(response.text, "html.parser")
+                details = {"company_url_direct": parse_company_website(soup)}
+            else:
+                self.log.warning(f"company {slug}: redirected to {path}")
+        except Exception as e:
+            self.log.warning(f"company {slug}: {e}")
+        self.company_cache[slug] = details
+        return details

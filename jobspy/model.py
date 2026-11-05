@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 from abc import ABC, abstractmethod
-from datetime import date
+from datetime import date, datetime
 from enum import Enum
 
 from pydantic import (
@@ -78,6 +78,7 @@ class Country(Enum):
     SOUTHAFRICA = "south africa"
     SOUTHKOREA = "south korea"
     SPAIN = "spain"
+    SRILANKA = "sri lanka"
     SWEDEN = "sweden"
     SWITZERLAND = "switzerland"
     TAIWAN = "taiwan"
@@ -100,6 +101,7 @@ class Country(Enum):
 
 country_aliases = {
     "czechia": "czech republic",
+    "srilanka": "sri lanka",
     "turkey": "türkiye",
     "uae": "united arab emirates",
     "united kingdom": "uk",
@@ -163,6 +165,8 @@ class JobPost(BaseModel):
     company: str | None = None
     location: Location | None = None
     date_posted: date | None = None
+    date_estimated: datetime | None = None
+    """When the job was posted, estimated from "N hours ago" text (LinkedIn)"""
     job_type: list[JobType] | None = None
     salary_source: str | None = None
     interval: CompensationInterval | None = None
@@ -258,6 +262,7 @@ class ScraperInput(BaseModel):
     linkedin_fetch_description: bool = False
     """Deprecated since 1.2.0: use fetch_description; will be removed in 2.0."""
     linkedin_company_ids: list[int] | None = None
+    linkedin_fetch_company_details: bool = False
     description_format: DescriptionFormat = DescriptionFormat.MARKDOWN
 
     results_wanted: int = Field(15, ge=1)
